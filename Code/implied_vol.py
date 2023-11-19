@@ -199,59 +199,6 @@ class BS_implied_vol():
 
         return implied_vol
 
-# plot implied volatility roughly
-# plt.figure(figsize=(10, 6))
-# for strike in implied_vol.index:
-#     plt.scatter(implied_vol.columns, implied_vol.loc[strike])
-# plt.xticks(rotation=45)
-# plt.xlabel('Strike')
-# plt.ylabel('Implied Volatility')
-# plt.title('Implied Volatility vs Expiry')
-# plt.show()
-
-
-
-# # calculate implied volatility
-# r = implied_ir
-# today = pd.to_datetime('2023-09-01', format='%Y-%m-%d')
-
-# # for each expiry
-# implied_vol = pd.DataFrame(columns=expiry_list_spx)
-# def iv_shortcut(expiry, strike, option_price_strike, iscall=True):
-#     F = implied_params[implied_params['Expiry'] == expiry]['implied_fwd'].values[0]
-#     K = strike
-#     T = (pd.to_datetime(expiry, format='%Y-%m-%d') - today).days / 365
-
-#     implied_vol = bisection_implied_vol(F, K, T, r, option_price_strike, isCall=iscall)
-#     return implied_vol
-
-# for expiry in expiry_list_spx:
-#     # for each expiry
-#     option_price_expiry = option_price[option_price['Expiry'] == expiry]
-#     option_strike = option_price_expiry['Strike'].unique()
-
-#     for strike in option_strike:
-#         # for each strike
-#         option_price_strike = option_price_expiry[option_price_expiry['Strike'] == strike]
-
-#         # check if call price is NaN
-#         if not option_price_strike['c'].isna().values[0]:
-#             option_price_strike_k = option_price_strike['c'].values[0]
-#             isCall = True
-#         if not option_price_strike['p'].isna().values[0]:
-#             option_price_strike_k = option_price_strike['p'].values[0]
-#             isCall = False
- 
-#         F = implied_params[implied_params['Expiry'] == expiry]['implied_fwd'].values[0]
-#         K = strike
-#         T = (pd.to_datetime(expiry, format='%Y-%m-%d') - today).days / 365
-
-#         implied_vol_expiry_K = bisection_implied_vol(F, K, T, r, option_price_strike_k, isCall=isCall)
-#         implied_vol.loc[strike, expiry] = implied_vol_expiry_K
-
-# implied_vol = implied_vol.sort_index()
-# implied_vol = implied_vol.transpose()
-
 
 # ----------------------- test code -----------------------
 if __name__ == '__main__':
