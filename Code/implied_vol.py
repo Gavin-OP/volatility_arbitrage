@@ -22,18 +22,6 @@ def BS_fwd_pricer(F, K, T, sig, r, isCall):
 
 # use bisection method to find implied volatility
 def bisection_implied_vol(F, K, T, r, option_price, tol=0.05, isCall=True):
-    # define BS model
-    def BS_fwd_pricer(F, K, T, sig, r, isCall):
-        d1 = (np.log(F / K) + 0.5 * sig ** 2 * T) / (sig * np.sqrt(T))
-        d2 = d1 - sig * np.sqrt(T)
-        
-        if isCall:
-            option_price = np.exp(-r * T) * (F * norm.cdf(d1) - K * norm.cdf(d2))
-        else:
-            option_price = np.exp(-r * T) * (K * norm.cdf(-d2) - F * norm.cdf(-d1))
-
-        return option_price
-    
     # leave the isCall and sig as variables for the pricer
     implied_vol_pricer = partial(BS_fwd_pricer, F = F, K = K, r=r, T=T)
 

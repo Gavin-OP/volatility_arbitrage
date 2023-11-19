@@ -74,18 +74,21 @@ class data_cleaning:
     
 
     def get_spx_hist(self, start, end):
-        spx = yf.Ticker('^GSPC')
-        spx_hist = spx.history(start=start, end=end)
-        spx_hist = spx_hist.reset_index()
-        spx_hist = spx_hist[['Date', 'Open']]
-        spx_hist['Date'] = pd.to_datetime(spx_hist['Date'], format='%Y-%m-%d')
-        spx_hist['Date'] = spx_hist['Date'].dt.date
-        spx_hist['Date'] = spx_hist['Date'].astype(str)
-        spx_hist = spx_hist.rename(columns={'Close':'SPX'})
-        spx_hist = spx_hist.set_index('Date')
         # check if the file exists
         if not os.path.exists(f'./Public/data/index_price/spx_hist_{start}_{end}.csv'):
+            spx = yf.Ticker('^GSPC')
+            spx_hist = spx.history(start=start, end=end)
+            spx_hist = spx_hist.reset_index()
+            spx_hist = spx_hist[['Date', 'Open']]
+            spx_hist['Date'] = pd.to_datetime(spx_hist['Date'], format='%Y-%m-%d')
+            spx_hist['Date'] = spx_hist['Date'].dt.date
+            spx_hist['Date'] = spx_hist['Date'].astype(str)
+            spx_hist = spx_hist.rename(columns={'Close':'SPX'})
+            spx_hist = spx_hist.set_index('Date')
             spx_hist.to_csv(f'./Public/data/index_price/spx_hist_{start}_{end}.csv')
+        else:
+            spx_hist = pd.read_csv(f'./Public/data/index_price/spx_hist_{start}_{end}.csv')
+            spx_hist = spx_hist.set_index('Date')
         
         return spx_hist
     
