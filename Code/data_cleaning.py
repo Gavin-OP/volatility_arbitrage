@@ -3,6 +3,7 @@ import pandas as pd
 import yfinance as yf
 import warnings
 import os
+from IPython.display import display
 
 
 # define it a class for data cleaning
@@ -11,7 +12,7 @@ class data_cleaning:
         self.option_data = option_data
         # self.expiry_list = None  # Initialize expiry_list as None
 
-    def format_data(self):
+    def format_data(self, index='SPX'):
         # ignore SettingWithCopyWarning:
         pd.options.mode.chained_assignment = None
         
@@ -44,8 +45,11 @@ class data_cleaning:
         self.option_data['Expiry'] = self.option_data['Expiry'].astype(str)
         self.option_data = self.option_data[self.option_data['Volm'] != 0]
 
-        # only use SPX data
-        self.option_data = self.option_data[self.option_data['Index'] == 'SPX']
+        # For spx option, only use SPX data
+        if index == 'SPX':
+            self.option_data = self.option_data[self.option_data['Index'] == 'SPX']
+        elif index == 'SPXW':
+            self.option_data = self.option_data[self.option_data['Index'] == 'SPXW']
 
         # set index as number
         self.option_data = self.option_data.reset_index(drop=True)
@@ -75,7 +79,7 @@ class data_cleaning:
 
     def get_spx_hist(self, start, end):
         # check if the file exists
-        if not os.path.exists(f'./Public/data/index_price/spx_hist_{start}_{end}.csv'):
+        if not os.path.exists(f'./Public/Data/Index/spx_hist_{start}_{end}.csv'):
             spx = yf.Ticker('^GSPC')
             spx_hist = spx.history(start=start, end=end)
             spx_hist = spx_hist.reset_index()
@@ -85,9 +89,9 @@ class data_cleaning:
             spx_hist['Date'] = spx_hist['Date'].astype(str)
             spx_hist = spx_hist.rename(columns={'Close':'SPX'})
             spx_hist = spx_hist.set_index('Date')
-            spx_hist.to_csv(f'./Public/data/index_price/spx_hist_{start}_{end}.csv')
+            spx_hist.to_csv(f'./Public/Data/Index/spx_hist_{start}_{end}.csv')
         else:
-            spx_hist = pd.read_csv(f'./Public/data/index_price/spx_hist_{start}_{end}.csv')
+            spx_hist = pd.read_csv(f'./Public/Data/Index/spx_hist_{start}_{end}.csv')
             spx_hist = spx_hist.set_index('Date')
         
         return spx_hist
@@ -98,9 +102,9 @@ class data_cleaning:
         warnings.simplefilter(action='ignore', category=FutureWarning)
 
         # store call price and put price with same strike and expiry in the same row of a dataframe
-        option_price = pd.DataFrame(columns=['Strike', 'Expiry', 'c', 'p'])
-        option_data_spx = self.option_data[self.option_data['Index'] == 'SPX']
-        expiry_list = option_data_spx['Expiry'].unique()
+        option_price = pd.DataFrame(columns=['Index', 'Strike', 'Expiry', 'c', 'p'])
+        expiry_list = self.option_data['Expiry'].unique()
+        index = self.option_data['Index'].unique()
         
         for expiry in expiry_list:
             # for each expiry
@@ -123,7 +127,7 @@ class data_cleaning:
                 if not put_price.empty:
                     put_price = put_price.values[0]
 
-                temp_price = pd.DataFrame({'Strike': strike, 'Expiry': expiry, 'c': call_price, 'p': put_price}, index=[0])
+                temp_price = pd.DataFrame({'Index': index, 'Strike': strike, 'Expiry': expiry, 'c': call_price, 'p': put_price}, index=[0])
                 option_price = pd.concat([option_price, temp_price], axis=0)
         
         # set index as number
@@ -138,8 +142,16 @@ class data_cleaning:
     
 # -------------------------- test code --------------------------
 if __name__ == '__main__':
-    raw_data = pd.read_csv('./Public/data/option_price/20230901/spx_option_0901.csv')
-    option_data = data_cleaning(raw_data).format_data()
-    print(option_data)
-    # spx_hist = get_spx_hist('2021-08-01', '2021-09-01')
-    # print(spx_hist)
+    raw_data = pd.read_csv('./Public/Data/Option/spx_option_0901.csv')
+    option_data_spx = data_cleaning(raw_data).format_data(index = 'SPX')
+    option_data_spx = data_cleaning(option_data_spx).check_iv_number()
+    option_data_spxw = data_cleaning(raw_data).format_data(index = 'SPXW')
+    option_data_spxw = data_cleaning(option_data_spxw).check_iv_number()
+    spx_data = data_cleaning(option_data_spx).get_spx_hist('2021-09-01', '2023-11-13')
+    option_price_spx = data_cleaning(option_data_spx).extract_option_price()
+
+    display(option_data_spx.head())
+    # display(option_data_spxw.head())
+    display(spx_data.head())
+    display(option_price_spx.head())
+    

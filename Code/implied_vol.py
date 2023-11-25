@@ -1,10 +1,12 @@
 # import necessary libraries
+import os
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 from sklearn.linear_model import LinearRegression
 from scipy.stats import norm
 from functools import partial
+from IPython.display import display
 
 
 # define BS model
@@ -66,8 +68,8 @@ class BS_implied_vol():
     def parity_implied_params(self, option_data, plot_parity = False):
         # initialization
         expiry_list = option_data['Expiry'].unique()
-        implied_params = pd.DataFrame(columns=['Expiry', 'implied_ir', 'implied_fwd'])
-        # today = pd.to_datetime('2023-09-01', format='%Y-%m-%d')
+        implied_params = pd.DataFrame(columns=['Index', 'Expiry', 'implied_ir', 'implied_fwd'])
+        index = option_data['Index'].unique()
 
         for expiry in expiry_list:
             # for each expiry
@@ -88,18 +90,34 @@ class BS_implied_vol():
             risk_free_rate = -np.log(discount_factor) / T
 
             # format the output
-            implied_params = pd.concat([implied_params, pd.DataFrame({'Expiry': expiry, 'implied_ir': risk_free_rate, 'implied_fwd': forward_price}, index=[0])], axis=0)
+            implied_params = pd.concat([implied_params, pd.DataFrame({'Index': index, 'Expiry': expiry, 'implied_ir': risk_free_rate, 'implied_fwd': forward_price}, index=[0])], axis=0)
             
             # plot c-p vs strike
             if plot_parity:
                 plt.figure(figsize=(10, 6))
-                plt.scatter(option_price_expiry['Strike'], option_price_expiry['c-p'])
-                plt.plot(option_price_expiry['Strike'], model.predict(x), color='red')
-                plt.text(0.6, 0.8, f'c-p = {model.coef_[0]:.4f} * strike + {model.intercept_:.4f}', transform=plt.gca().transAxes)
+                plt.scatter(option_price_expiry['Strike'], option_price_expiry['c-p'], color='#0078d4')
+                plt.plot(option_price_expiry['Strike'], model.predict(x), color='#4a8cff')
+                plt.text(0.6, 0.8, f'c-p = {model.coef_[0]:.4f} * strike + {model.intercept_:.4f}', transform=plt.gca().transAxes, color='#a6a6a6')
                 plt.xlabel('Strike')
                 plt.ylabel('Call - Put')
-                title = 'Call - Put vs Strike for ' + expiry
+                title = index +': Put Call parity ' + expiry
+                title = ''.join(title)
                 plt.title(title)
+                # make a color of legend, axis, ticks, and formulas both suitable for dark and light background
+                plt.gca().spines['bottom'].set_color('#a6a6a6')
+                plt.gca().spines['top'].set_color('#a6a6a6')
+                plt.gca().spines['right'].set_color('#a6a6a6')
+                plt.gca().spines['left'].set_color('#a6a6a6')
+                plt.gca().tick_params(axis='x', colors='#a6a6a6')
+                plt.gca().tick_params(axis='y', colors='#a6a6a6')
+                plt.gca().yaxis.label.set_color('#a6a6a6')
+                plt.gca().xaxis.label.set_color('#a6a6a6')
+                plt.gca().title.set_color('#a6a6a6')
+                # save the plot if not exist
+                name = index + '_' + expiry
+                name = ''.join(name)
+                if not os.path.exists(f'./Public/Plot/Put_call_parity/{name}.png'):
+                    plt.savefig(f'./Public/Plot/Put_call_parity/{name}.png', transparent=True)
                 plt.show()
         
         # reset index
@@ -109,23 +127,49 @@ class BS_implied_vol():
 
     # plot implied ir vs expiry
     def plot_ir(self, implied_params):
+        index = implied_params['Index'].unique()
         plt.figure(figsize=(10, 6))
-        plt.plot(implied_params['Expiry'], implied_params['implied_ir'])
+        plt.plot(implied_params['Expiry'], implied_params['implied_ir'], color='#4a8cff')
         plt.ylim(bottom=0)
         plt.xticks(rotation=45)
         plt.xlabel('Expiry')
         plt.ylabel('Implied Interest Rate')
-        plt.title('Implied Interest Rate vs Expiry')
+        title = index +': Implied Interest Rate vs Expiry'
+        title = ''.join(title)
+        plt.title(title)
+        plt.gca().spines['bottom'].set_color('#a6a6a6')
+        plt.gca().spines['top'].set_color('#a6a6a6')
+        plt.gca().spines['right'].set_color('#a6a6a6')
+        plt.gca().spines['left'].set_color('#a6a6a6')
+        plt.gca().tick_params(axis='x', colors='#a6a6a6')
+        plt.gca().tick_params(axis='y', colors='#a6a6a6')
+        plt.gca().yaxis.label.set_color('#a6a6a6')
+        plt.gca().xaxis.label.set_color('#a6a6a6')
+        plt.gca().title.set_color('#a6a6a6')
+        # save the plot if not exist
+        
         plt.show()
     
     # plot implied fwd vs expiry
     def plot_fwd(self, implied_params):
+        index = implied_params['Index'].unique()
         plt.figure(figsize=(10, 6))
-        plt.plot(implied_params['Expiry'], implied_params['implied_fwd'])
+        plt.plot(implied_params['Expiry'], implied_params['implied_fwd'], color='#4a8cff')
         plt.xticks(rotation=45)
         plt.xlabel('Expiry')
         plt.ylabel('Implied Forward Price')
-        plt.title('Implied Forward Price vs Expiry')
+        title = index +': Implied Forward Price vs Expiry'
+        title = ''.join(title)
+        plt.title(title)
+        plt.gca().spines['bottom'].set_color('#a6a6a6')
+        plt.gca().spines['top'].set_color('#a6a6a6')
+        plt.gca().spines['right'].set_color('#a6a6a6')
+        plt.gca().spines['left'].set_color('#a6a6a6')
+        plt.gca().tick_params(axis='x', colors='#a6a6a6')
+        plt.gca().tick_params(axis='y', colors='#a6a6a6')
+        plt.gca().yaxis.label.set_color('#a6a6a6')
+        plt.gca().xaxis.label.set_color('#a6a6a6')
+        plt.gca().title.set_color('#a6a6a6')
         plt.show()
 
     # calculate average implied interest rate
@@ -136,13 +180,14 @@ class BS_implied_vol():
 
         return implied_ir
 
-    def get_iv(self, option_data, implied_params, spx_data, r, plot_iv_scatter = False):
+    def get_iv(self, option_data, implied_params, index_data, plot_iv_scatter = False):
         # initialization
         expiry_list = option_data['Expiry'].unique()
         implied_vol = pd.DataFrame(columns=expiry_list)
 
         for expiry in expiry_list:
             # for each expiry
+            r = implied_params[implied_params['Expiry'] == expiry]['implied_ir'].values[0]
             option_price_expiry = self.option_price[self.option_price['Expiry'] == expiry]
             option_strike = option_price_expiry['Strike'].unique()
 
@@ -167,12 +212,9 @@ class BS_implied_vol():
 
         implied_vol = implied_vol.sort_index()
         implied_vol = implied_vol.transpose()
-        
-        # calculate forward moneyness
-        spx_0901 = spx_data.loc['2023-09-01', 'Open']
-        implied_vol.columns = implied_vol.columns.astype(float) / spx_0901
     
         # plot the rought implied volatility as scatter plot
+        index = implied_params['Index'].unique()
         if plot_iv_scatter:
             plt.figure(figsize=(10, 6))
             for strike in implied_vol.index:
@@ -180,8 +222,25 @@ class BS_implied_vol():
             plt.xticks(rotation=45)
             plt.xlabel('Strike')
             plt.ylabel('Implied Volatility')
+            
             plt.title('Implied Volatility vs Expiry')
             plt.legend(implied_vol.index)
+            for text in plt.gca().get_legend().get_texts():
+                text.set_color('#a6a6a6')
+            plt.gca().spines['bottom'].set_color('#a6a6a6')
+            plt.gca().spines['top'].set_color('#a6a6a6')
+            plt.gca().spines['right'].set_color('#a6a6a6')
+            plt.gca().spines['left'].set_color('#a6a6a6')
+            plt.gca().tick_params(axis='x', colors='#a6a6a6')
+            plt.gca().tick_params(axis='y', colors='#a6a6a6')
+            plt.gca().yaxis.label.set_color('#a6a6a6')
+            plt.gca().xaxis.label.set_color('#a6a6a6')
+            plt.gca().title.set_color('#a6a6a6')
+            plt.gca().get_legend().get_frame().set_alpha(0)
+            name = index + '_rough_iv'
+            name = ''.join(name)
+            if not os.path.exists(f'./Public/Plot/Rough_iv/{name}.png'):
+                plt.savefig(f'./Public/Plot/Rough_iv/{name}.png', transparent=True)
             plt.show()
             
 
@@ -190,4 +249,16 @@ class BS_implied_vol():
 
 # ----------------------- test code -----------------------
 if __name__ == '__main__':
-    print('1')
+    from data_cleaning import data_cleaning
+    raw_data = pd.read_csv('./Public/Data/Option/spx_option_0901.csv')
+    option_data_spx = data_cleaning(raw_data).format_data(index = 'SPX')
+    option_data_spx = data_cleaning(option_data_spx).check_iv_number()
+    option_data_spxw = data_cleaning(raw_data).format_data(index = 'SPXW')
+    option_data_spxw = data_cleaning(option_data_spxw).check_iv_number()
+    spx_data = data_cleaning(option_data_spx).get_spx_hist('2021-09-01', '2023-11-13')
+    option_price_spx = data_cleaning(option_data_spx).extract_option_price()
+
+    implied_params = BS_implied_vol(option_price_spx).parity_implied_params(option_data_spx, plot_parity=False)
+    implied_vol = BS_implied_vol(option_price_spx).get_iv(option_data_spx, implied_params, spx_data, plot_iv_scatter=False)
+
+    display(implied_vol.head())
