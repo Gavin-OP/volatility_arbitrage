@@ -3,6 +3,7 @@ from scipy.optimize import curve_fit
 import numpy as np
 import pandas as pd
 import os
+import warnings
 
 # get atm implied vol
 def iv_near_atm(x, a, b):
@@ -16,6 +17,7 @@ class fit_BS():
         self.implied_vol = implied_vol
         self.implied_params = implied_params
         
+    
     def get_fwd_mny(self):
         # initialization, column name: expiry, first row: implied_fwd
         fwd_moneyness = pd.DataFrame(columns=self.implied_params['Expiry'].unique())
@@ -31,6 +33,8 @@ class fit_BS():
         return fwd_moneyness
     
     def fit_BS_curve(self, fwd_moneyness, bounds = ([0, 2.7, -70], [8, 10, -20]), p0=[4, 5, -30], plot_curve=False):
+        # ignore wanings
+        warnings.filterwarnings("ignore")
         # initialization
         expiry_list = self.implied_vol.index.values
         bs_iv_curve_params = pd.DataFrame(columns=['atm_vol', 'delta', 'kappa', 'gamma'])
@@ -87,8 +91,8 @@ class fit_BS():
 
         # plot the implied vol curve with scatter plot
         if plot_curve:
-            plt.figure(figsize=(20, 10))
-            x = np.linspace(0.85, 1.15, 100)
+            plt.figure(figsize=(10, 6))
+            x = np.linspace(0.8, 1.15, 100)
             y = np.zeros((len(x), len(bs_iv_curve_params.index)))
             i = 0
             for expiry in bs_iv_curve_params.index:
@@ -105,7 +109,7 @@ class fit_BS():
                 fwd_moneyness_expiry = fwd_moneyness[expiry]
                 fwd_moneyness_expiry = fwd_moneyness_expiry.drop(['implied_fwd'])
                 implied_vol_expiry = self.implied_vol.T[expiry]
-                plt.scatter(fwd_moneyness_expiry, implied_vol_expiry.values, label=expiry)
+                plt.scatter(fwd_moneyness_expiry, implied_vol_expiry.values)
             
             plt.title('BS Implied Volatility Curve')
             plt.xlabel('Forward Moneyness')
