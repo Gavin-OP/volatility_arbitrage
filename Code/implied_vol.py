@@ -67,59 +67,96 @@ class BS_implied_vol():
     
     def parity_implied_params(self, option_data, plot_parity = False):
         # initialization
-        expiry_list = option_data['Expiry'].unique()
         implied_params = pd.DataFrame(columns=['Index', 'Expiry', 'implied_ir', 'implied_fwd'])
-        index = option_data['Index'].unique()
+        index_list = option_data['Index'].unique()
 
-        for expiry in expiry_list:
-            # for each expiry
-            option_price_expiry = self.option_price[self.option_price['Expiry'] == expiry]
-            option_price_expiry = option_price_expiry.dropna()
-            option_price_expiry['c-p'] = option_price_expiry['c'] - option_price_expiry['p']
+        for index in index_list:
+            expiry_list_index = option_data[option_data['Index'] == index]['Expiry'].unique()
+            for expiry in expiry_list_index:
+                # for each expiry
+                option_price_expiry = self.option_price[self.option_price['Expiry'] == expiry]
+                option_price_expiry = option_price_expiry.dropna()
+                option_price_expiry['c-p'] = option_price_expiry['c'] - option_price_expiry['p']
 
-            # regress c-p on -strike
-            model = LinearRegression()
-            x = option_price_expiry[['Strike']]
-            y = option_price_expiry['c-p']
-            T = (pd.to_datetime(expiry, format='%Y-%m-%d') - self.today).days / 365
-            model.fit(x, y)
-            discount_factor = -model.coef_[0]
+                # regress c-p on -strike
+                model = LinearRegression()
+                x = option_price_expiry[['Strike']]
+                y = option_price_expiry['c-p']
+                if x.empty or y.empty:
+                    continue
+                T = (pd.to_datetime(expiry, format='%Y-%m-%d') - self.today).days / 365
+                model.fit(x, y)
+                discount_factor = -model.coef_[0]
+                
+                # get implied risk free rate and implied forward price
+                if discount_factor == 0:
+                    # use the previous expiry's interest rate and fwd price with modification
+                    # location = np.where(expiry_list_index == expiry)[0][0]
+                    # previous_expiry = expiry_list_index[location - 1]
+                    # risk_free_rate = implied_params[implied_params['Expiry'] == previous_expiry]['implied_ir']
+                    # forward_price = implied_params[implied_params['Expiry'] == previous_expiry]['implied_fwd']
+                    # time_diff = (pd.to_datetime(expiry, format='%Y-%m-%d') - pd.to_datetime(previous_expiry, format='%Y-%m-%d')).days / 365
+                    # forward_price = forward_price * np.exp(risk_free_rate * time_diff)
+                    continue
+                else:
+                    forward_price = model.intercept_ / discount_factor
+                    risk_free_rate = -np.log(discount_factor) / T
+
+                # format the output
+                implied_params = pd.concat([implied_params, pd.DataFrame({'Index': index, 'Expiry': expiry, 'implied_ir': risk_free_rate, 'implied_fwd': forward_price}, index=[0])], axis=0)
+                
+                # plot c-p vs strike
+                if plot_parity:
+                    plt.figure(figsize=(10, 6))
+                    plt.scatter(option_price_expiry['Strike'], option_price_expiry['c-p'], color='#0078d4')
+                    plt.plot(option_price_expiry['Strike'], model.predict(x), color='#4a8cff')
+                    plt.text(0.6, 0.8, f'c-p = {model.coef_[0]:.4f} * strike + {model.intercept_:.4f}', transform=plt.gca().transAxes, color='#a6a6a6')
+                    plt.xlabel('Strike')
+                    plt.ylabel('Call - Put')
+                    title = index +': Put Call parity ' + expiry
+                    title = ''.join(title)
+                    plt.title(title)
+                    # make a color of legend, axis, ticks, and formulas both suitable for dark and light background
+                    plt.gca().spines['bottom'].set_color('#a6a6a6')
+                    plt.gca().spines['top'].set_color('#a6a6a6')
+                    plt.gca().spines['right'].set_color('#a6a6a6')
+                    plt.gca().spines['left'].set_color('#a6a6a6')
+                    plt.gca().tick_params(axis='x', colors='#a6a6a6')
+                    plt.gca().tick_params(axis='y', colors='#a6a6a6')
+                    plt.gca().yaxis.label.set_color('#a6a6a6')
+                    plt.gca().xaxis.label.set_color('#a6a6a6')
+                    plt.gca().title.set_color('#a6a6a6')
+                    # save the plot if not exist
+                    name = index + '_' + expiry
+                    name = ''.join(name)
+                    if not os.path.exists(f'./Public/Plot/Put_call_parity/{name}.png'):
+                        plt.savefig(f'./Public/Plot/Put_call_parity/{name}.png', transparent=True)
+                    plt.show()
             
-            # get implied risk free rate and implied forward price
-            forward_price = model.intercept_ / discount_factor
-            risk_free_rate = -np.log(discount_factor) / T
-
-            # format the output
-            implied_params = pd.concat([implied_params, pd.DataFrame({'Index': index, 'Expiry': expiry, 'implied_ir': risk_free_rate, 'implied_fwd': forward_price}, index=[0])], axis=0)
-            
-            # plot c-p vs strike
-            if plot_parity:
-                plt.figure(figsize=(10, 6))
-                plt.scatter(option_price_expiry['Strike'], option_price_expiry['c-p'], color='#0078d4')
-                plt.plot(option_price_expiry['Strike'], model.predict(x), color='#4a8cff')
-                plt.text(0.6, 0.8, f'c-p = {model.coef_[0]:.4f} * strike + {model.intercept_:.4f}', transform=plt.gca().transAxes, color='#a6a6a6')
-                plt.xlabel('Strike')
-                plt.ylabel('Call - Put')
-                title = index +': Put Call parity ' + expiry
-                title = ''.join(title)
-                plt.title(title)
-                # make a color of legend, axis, ticks, and formulas both suitable for dark and light background
-                plt.gca().spines['bottom'].set_color('#a6a6a6')
-                plt.gca().spines['top'].set_color('#a6a6a6')
-                plt.gca().spines['right'].set_color('#a6a6a6')
-                plt.gca().spines['left'].set_color('#a6a6a6')
-                plt.gca().tick_params(axis='x', colors='#a6a6a6')
-                plt.gca().tick_params(axis='y', colors='#a6a6a6')
-                plt.gca().yaxis.label.set_color('#a6a6a6')
-                plt.gca().xaxis.label.set_color('#a6a6a6')
-                plt.gca().title.set_color('#a6a6a6')
-                # save the plot if not exist
-                name = index + '_' + expiry
-                name = ''.join(name)
-                if not os.path.exists(f'./Public/Plot/Put_call_parity/{name}.png'):
-                    plt.savefig(f'./Public/Plot/Put_call_parity/{name}.png', transparent=True)
-                plt.show()
-        
+            # add expiry that cannot be found by put call parity
+            expiry_list_index_exist = implied_params[implied_params['Index'] == index]['Expiry'].unique()
+            expiry_list_index_not_exist = expiry_list_index[~np.isin(expiry_list_index, expiry_list_index_exist)]
+            expiry_list_index_exist = pd.to_datetime(expiry_list_index_exist, format='%Y-%m-%d')
+            expiry_list_index_exist = np.sort(expiry_list_index_exist)
+            for expiry in expiry_list_index_not_exist:
+                if (expiry_list_index_exist < pd.to_datetime(expiry, format='%Y-%m-%d')).sum() == 0:
+                    previous_expiry = expiry_list_index_exist[expiry_list_index_exist > pd.to_datetime(expiry, format='%Y-%m-%d')][-1]
+                    previous_expiry = pd.to_datetime(previous_expiry, format='%Y-%m-%d').strftime('%Y-%m-%d')
+                    while implied_params[(implied_params['Index'] == index) & (implied_params['Expiry'] == previous_expiry)]['implied_ir'].values[0] == 0:
+                        previous_expiry = expiry_list_index_exist[expiry_list_index_exist > pd.to_datetime(previous_expiry, format='%Y-%m-%d')][-1]
+                        previous_expiry = pd.to_datetime(previous_expiry, format='%Y-%m-%d').strftime('%Y-%m-%d')
+                else:
+                    previous_expiry = expiry_list_index_exist[expiry_list_index_exist < pd.to_datetime(expiry, format='%Y-%m-%d')][-1]
+                    previous_expiry = pd.to_datetime(previous_expiry, format='%Y-%m-%d').strftime('%Y-%m-%d')
+                    while implied_params[(implied_params['Index'] == index) & (implied_params['Expiry'] == previous_expiry)]['implied_ir'].values[0] < 0:
+                        previous_expiry = expiry_list_index_exist[expiry_list_index_exist < pd.to_datetime(previous_expiry, format='%Y-%m-%d')][-1]
+                        previous_expiry = pd.to_datetime(previous_expiry, format='%Y-%m-%d').strftime('%Y-%m-%d')
+                # change the format of previous_expiry to string with YYYY-MM-DD
+                previous_expiry = pd.to_datetime(previous_expiry, format='%Y-%m-%d').strftime('%Y-%m-%d')
+                implied_ir = implied_params[(implied_params['Index'] == index) & (implied_params['Expiry'] == previous_expiry)]['implied_ir']
+                implied_fwd = implied_params[(implied_params['Index'] == index) & (implied_params['Expiry'] == previous_expiry)]['implied_fwd']
+                implied_params = pd.concat([implied_params, pd.DataFrame({'Index': index, 'Expiry': expiry, 'implied_ir': implied_ir, 'implied_fwd': implied_fwd}, index=[0])], axis=0)
+                
         # reset index
         implied_params = implied_params.reset_index(drop=True)
 
@@ -180,7 +217,7 @@ class BS_implied_vol():
 
         return implied_ir
 
-    def get_iv(self, option_data, implied_params, index_data, plot_iv_scatter = False):
+    def get_iv(self, option_data, implied_params, plot_iv_scatter = False):
         # initialization
         expiry_list = option_data['Expiry'].unique()
         implied_vol = pd.DataFrame(columns=expiry_list)
@@ -222,8 +259,9 @@ class BS_implied_vol():
             plt.xticks(rotation=45)
             plt.xlabel('Strike')
             plt.ylabel('Implied Volatility')
-            
-            plt.title('Implied Volatility vs Expiry')
+            title = index +': Implied Volatility vs Expiry'
+            title = ''.join(title)
+            plt.title(title)
             plt.legend(implied_vol.index)
             for text in plt.gca().get_legend().get_texts():
                 text.set_color('#a6a6a6')
@@ -250,15 +288,31 @@ class BS_implied_vol():
 # ----------------------- test code -----------------------
 if __name__ == '__main__':
     from data_cleaning import data_cleaning
-    raw_data = pd.read_csv('./Public/Data/Option/spx_option_0901.csv')
-    option_data_spx = data_cleaning(raw_data).format_data(index = 'SPX')
-    option_data_spx = data_cleaning(option_data_spx).check_iv_number()
-    option_data_spxw = data_cleaning(raw_data).format_data(index = 'SPXW')
-    option_data_spxw = data_cleaning(option_data_spxw).check_iv_number()
-    spx_data = data_cleaning(option_data_spx).get_spx_hist('2021-09-01', '2023-11-13')
-    option_price_spx = data_cleaning(option_data_spx).extract_option_price()
 
-    implied_params = BS_implied_vol(option_price_spx).parity_implied_params(option_data_spx, plot_parity=False)
-    implied_vol = BS_implied_vol(option_price_spx).get_iv(option_data_spx, implied_params, spx_data, plot_iv_scatter=False)
+    option_data_spx = pd.read_csv('./Public/Data/Option/spx_option_0901.csv')
+    option_data_nky = pd.read_csv('./Public/Data/Option/nky_option_0901.csv')
+    option_data_hsi = pd.read_csv('./Public/Data/Option/hsi_option_0901.csv')
+    
+    option_data_spx = data_cleaning(option_data_spx).format_data(index = 'SPX')
+    option_data_nky = data_cleaning(option_data_nky).format_data(index = 'NKY')
+    option_data_hsi = data_cleaning(option_data_hsi).format_data(index = 'HSI')
+    
+    option_data_spx = data_cleaning(option_data_spx).check_iv_number(drop_type='volume', drop_threshold=10)
+    option_data_nky = data_cleaning(option_data_nky).check_iv_number(drop_type='volume', drop_threshold=2)
+    option_data_hsi = data_cleaning(option_data_hsi).check_iv_number()
 
-    display(implied_vol.head())
+    spx_data = data_cleaning(option_data_spx).get_hist('SPX', '2021-09-01', '2023-11-13')
+    nky_data = data_cleaning(option_data_nky).get_hist('NKY', '2021-09-01', '2023-11-13')
+    hsi_data = data_cleaning(option_data_hsi).get_hist('HSI', '2021-09-01', '2023-11-13')
+    
+    option_price_spx = data_cleaning(option_data_spx).extract_option_price(px_type='mid')
+    option_price_nky = data_cleaning(option_data_nky).extract_option_price(px_type='mid')
+    option_price_hsi = data_cleaning(option_data_hsi).extract_option_price(px_type='mid')
+
+
+
+    option_data = pd.concat([option_data_spx, option_data_nky, option_data_hsi], axis=0)
+    option_price = pd.concat([option_price_spx, option_price_nky, option_price_hsi], axis=0)
+    
+    implied_params = BS_implied_vol(option_price).parity_implied_params(option_data, plot_parity=False)
+    implied_vol_spx = BS_implied_vol(option_price[option_price['Index'] == 'SPX']).get_iv(option_data[option_data['Index'] == 'SPX'], implied_params[implied_params['Index'] == 'SPX'], plot_iv_scatter=True)
