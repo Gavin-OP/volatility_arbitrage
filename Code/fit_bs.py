@@ -10,6 +10,11 @@ def iv_near_atm(x, a, b):
     y = a * x + b
     return y
 
+# define sigmoid function
+def sigmoid(x):
+    sig = 1 / (1 + np.exp(-x))
+    return sig
+
    
 
 class fit_BS():
@@ -32,7 +37,7 @@ class fit_BS():
         
         return fwd_moneyness
     
-    def fit_BS_curve(self, fwd_moneyness, bounds = ([0, 2.7, -70], [8, 10, -20]), p0=[4, 5, -30], plot_curve=False):
+    def fit_BS_curve(self, fwd_moneyness, bounds = ([0, 2.7, -70], [8, 10, -20]), p0=[4, 5, -30], plot_curve=False, method='tanh'):
         # ignore wanings
         warnings.filterwarnings("ignore")
         # initialization
@@ -71,10 +76,13 @@ class fit_BS():
                 
             # fit implied vol curve
             # BS IV curve model
-            def implied_vol_curve(x, delta, kappa, gamma):
+            def implied_vol_curve(x, delta, kappa, gamma, method = method):
+                if method == 'tanh':
                     y = atm_vol**2 + delta * (np.tanh(kappa * x) / kappa) + 0.5 * gamma * (np.tanh(kappa * x) / kappa)**2
-                    y = np.sqrt(y)
-                    return y
+                if method == 'sigmoid':
+                    y = atm_vol**2 + delta * (sigmoid(kappa * x) / kappa) + 0.5 * gamma * (sigmoid(kappa * x) / kappa)**2
+                y = np.sqrt(y)
+                return y
 
             fwd_moneyness_x = implied_vol_fwd_moneyness.columns.values
             implied_vol_y = implied_vol_fwd_moneyness.loc['implied_vol'].values
@@ -137,4 +145,20 @@ class fit_BS():
 
 
 if __name__ == '__main__':
-    fit_BS_curve(p0=[1, 7, -65])
+    from data_cleaning import data_cleaning
+    from implied_vol import BS_implied_vol
+    
+    raw_data = pd.read_csv('./Public/data/option_price/20230901/spx_option_0901.csv')
+    option_data = data_cleaning(raw_data).format_data()
+    option_data = data_cleaning(option_data).check_iv_number()
+    spx_data = data_cleaning(option_data).get_spx_hist('2021-09-01', '2023-11-13')
+    option_price = data_cleaning(option_data).extract_option_price()
+
+    implied_params = BS_implied_vol(option_price).parity_implied_params(option_data, plot_parity=False)
+    BS_implied_vol(option_price).plot_ir(implied_params)
+    BS_implied_vol(option_price).plot_fwd(implied_params)
+    implied_vol = BS_implied_vol(option_price).get_iv(option_data, implied_params, spx_data, plot_iv_scatter=True)
+
+    fwd_moneyness_spx = fit_BS(implied_vol, implied_params).get_fwd_mny()
+    bs_iv_curve_params = fit_BS(implied_vol, implied_params).fit_BS_curve(fwd_moneyness_spx, plot_curve=True, method='sigmoid')
+
