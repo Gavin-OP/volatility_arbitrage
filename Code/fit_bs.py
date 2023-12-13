@@ -164,7 +164,7 @@ class fit_BS():
         
         # Function to calculate implied volatility using the parametric model
         def implied_vol_curve(x, atm_vol, delta, kappa, gamma):
-            y = atm_vol**2 + delta * (np.tanh(kappa * x) / kappa) + 0.5 * gamma * (np.tanh(kappa * x) / kappa)**2
+            y = atm_vol + delta * (np.tanh(kappa * x) / kappa) + 0.5 * gamma * (np.tanh(kappa * x) / kappa)**2
             return y
         
         # Loop over each expiry and calculate implied volatility values
@@ -174,11 +174,11 @@ class fit_BS():
             atm_vol = params[0]
 
             # Calculate implied volatility values for the current expiry
-            implied_vol_expiry.loc[:, expiry] = implied_vol_curve(fwd_mny_grid, atm_vol, params[1], params[2], params[3])
+            implied_vol_expiry.loc[:, expiry] = implied_vol_curve(fwd_mny_grid, atm_vol, params[3], params[3], params[3])
         
         # Create a 1D array of unique maturities for CubicSpline
         expiry_list_nu = date2num(bs_iv_curve_params.index)
-        expiry_grid = np.linspace(min(expiry_list_nu), max(expiry_list_nu), step)
+        expiry_grid = np.linspace(expiry_list_nu, max(expiry_list_nu), step)
         
         # Initialize an empty DataFrame to store interpolated implied volatility values
         implied_vol_surface = pd.DataFrame(index=fwd_mny_grid, columns=expiry_grid)
